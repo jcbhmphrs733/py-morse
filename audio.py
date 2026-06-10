@@ -96,7 +96,7 @@ class AudioEngine:
         t = (np.arange(frames) + self.phase) / self.sample_rate
 
         if self.tone_active:
-            wave = np.sin(2 * np.pi * self.frequency * t)
+            wave = np.sin(2 * np.pi * self.config.sidetone_hz * t)
         else:
             wave = np.zeros(frames)
 

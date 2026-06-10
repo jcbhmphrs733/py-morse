@@ -2,6 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass, field
+from time import perf_counter
 
 from events import Event, EventType
 from morse_table import decode
@@ -27,6 +28,12 @@ class DecoderState:
     intra_char_gap: float = 0.15
     char_gap: float = 0.35
     word_gap: float = 0.7
+
+    # Whether a tone is currently active
+    element_active: bool = False
+
+    # Timestamp of the last ELEMENT_END
+    last_end_time: float | None = None
 
 
 class Decoder:
@@ -67,8 +74,8 @@ class Decoder:
         self.state.dah_threshold = dit * 4
 
         self.state.intra_char_gap = dit * 1.5
-        self.state.char_gap = dit * 3.0
-        self.state.word_gap = dit * 7.0
+        self.state.char_gap = dit * self.config.char_gap_multiplier
+        self.state.word_gap = dit * self.config.word_gap_multiplier
 
     def push(self, event: Event):
         """
@@ -84,9 +91,11 @@ class Decoder:
             self._on_end(event)
 
     def _on_start(self, event: Event):
+        self.state.element_active = True
         self.state.last_event_time = event.timestamp
 
     def _on_end(self, event: Event):
+        self.state.element_active = False
         if self.state.last_event_time is None:
             return
 
@@ -96,6 +105,7 @@ class Decoder:
         self.state.current_sequence.append(symbol)
 
         self.state.last_event_time = event.timestamp
+        self.state.last_end_time = event.timestamp
 
     def _classify(self, duration: float) -> str:
         """
@@ -104,6 +114,24 @@ class Decoder:
         if duration < self.state.dit_threshold:
             return "."
         return "-"
+
+    def check_gaps(self):
+        """
+        Called periodically when no events arrive.
+        Detects character and word gaps based on elapsed silence.
+        """
+        if self.state.element_active or self.state.last_end_time is None:
+            return
+
+        elapsed = perf_counter() - self.state.last_end_time
+
+        if elapsed >= self.state.word_gap:
+            # finalize_word calls finalize_character first (no-op if sequence empty)
+            self.finalize_word()
+            self.state.last_end_time = None
+        elif elapsed >= self.state.char_gap and self.state.current_sequence:
+            self.finalize_character()
+            # Keep last_end_time so word gap can still fire after this character
 
     def finalize_character(self):
         """

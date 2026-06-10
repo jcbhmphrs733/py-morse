@@ -9,11 +9,6 @@ class InputMode(Enum):
     IAMBIC = auto()
 
 
-class KeyerMode(Enum):
-    MODE_A = auto()
-    MODE_B = auto()
-
-
 class PaddleLayout(Enum):
     LEFT_DIT_RIGHT_DAH = auto()
     LEFT_DAH_RIGHT_DIT = auto()
@@ -36,13 +31,17 @@ class Config:
 
     # Keyer settings
     input_mode: InputMode = InputMode.IAMBIC
-    keyer_mode: KeyerMode = KeyerMode.MODE_B
     paddle_layout: PaddleLayout = PaddleLayout.LEFT_DIT_RIGHT_DAH
 
     # Keyboard mappings
     left_paddle_key = 96
     right_paddle_key = 101
     straight_key = 32
+
+    # Decoder gap tolerances (multiplier of one dit duration)
+    # Standard Morse is 3× and 7×; larger values give more time between letters/words
+    char_gap_multiplier: float = 5.0
+    word_gap_multiplier: float = 12.0
 
     @property
     def dit_seconds(self) -> float:

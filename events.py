@@ -58,6 +58,9 @@ class Event:
     # Automatically assigned when event is created
     timestamp: float = field(default_factory=perf_counter)
 
+    element: ElementType | None = None
+    character: str | None = None
+
     # Optional payload data
     element: ElementType | None = None
     character: str | None = None

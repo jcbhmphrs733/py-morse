@@ -59,6 +59,11 @@ CHAR_TO_MORSE = {
 
 
 def decode(sequence: str) -> str:
+    """Look up a dot/dash sequence string. Returns '?' for unknowns."""
+    return MORSE_TO_CHAR.get(sequence, "?")
+
+
+def decode(sequence: str) -> str:
     """
     Convert Morse symbols to a character.
 
