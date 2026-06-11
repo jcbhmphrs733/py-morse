@@ -9,6 +9,7 @@ from decoder import Decoder
 from events import EventType
 from morse_table import CHAR_TO_MORSE
 from carrier_visualizer import CarrierVisualizer
+from text_sender import TextSender
 
 
 # Dark theme palette
@@ -29,12 +30,13 @@ class MorseGUI:
     that take effect immediately at runtime.
     """
 
-    def __init__(self, root: tk.Tk, config: Config, decoder: Decoder, audio, keyboard_input):
+    def __init__(self, root: tk.Tk, config: Config, decoder: Decoder, audio, keyboard_input, sender: TextSender):
         self.root = root
         self.config = config
         self.decoder = decoder
         self._audio = audio
         self._keyboard = keyboard_input
+        self._sender = sender
 
         self.root.title("Morse Trainer")
         self.root.resizable(False, False)
@@ -46,7 +48,9 @@ class MorseGUI:
 
         main_tab     = ttk.Frame(notebook)
         settings_tab = ttk.Frame(notebook)
-        notebook.add(main_tab,     text="  Main  ")
+        practice_tab = ttk.Frame(notebook)
+        notebook.add(main_tab,     text="  Receive  ")
+        notebook.add(practice_tab, text="  Transmit  ")
         notebook.add(settings_tab, text="  Settings  ")
 
         self._build_output(main_tab)
@@ -58,6 +62,7 @@ class MorseGUI:
         self._build_cheatsheet(mid)
 
         self._build_settings_tab(settings_tab)
+        self._build_practice_tab(practice_tab)
 
         self._poll_decoder()
         self._visualizer.start()
@@ -282,6 +287,88 @@ class MorseGUI:
 
     def _toggle_cheatsheet(self):
         pass  # no longer used — sheet is always visible
+
+    # -------------------------
+    # PRACTICE TAB
+    # -------------------------
+
+    def _build_practice_tab(self, parent):
+        # Carrier visualizer
+        vis_frame = ttk.LabelFrame(parent, text="Carrier", padding=4)
+        vis_frame.pack(fill="x", padx=10, pady=(10, 4))
+        self._practice_visualizer = CarrierVisualizer(
+            vis_frame, self._audio,
+            bg=_BG, color_on=self.config.carrier_color, color_mid=_BORDER,
+        )
+        self._practice_visualizer.pack(fill="x")
+        self._practice_visualizer.start()
+
+        ttk.Label(parent, text="Type or paste text below and press Send.",
+                  foreground=_MUTED).pack(anchor="w", padx=10, pady=(4, 4))
+
+        self._practice_text = tk.Text(
+            parent, height=6, width=50,
+            bg=_BG2, fg=_FG, insertbackground=_FG,
+            selectbackground=_SELECT, selectforeground=_FG,
+            relief="flat", bd=0, font=("Courier", 11),
+            wrap="word",
+        )
+        self._practice_text.pack(fill="x", padx=10)
+        self._practice_text.tag_configure(
+            "highlight",
+            background=_ACCENT, foreground=_BG,
+        )
+
+        btn_row = ttk.Frame(parent)
+        btn_row.pack(fill="x", padx=10, pady=6)
+
+        self._send_btn = ttk.Button(
+            btn_row, text="Send", command=self._practice_send
+        )
+        self._send_btn.pack(side="left", padx=(0, 6))
+
+        self._stop_btn = ttk.Button(
+            btn_row, text="Stop", command=self._practice_stop, state="disabled"
+        )
+        self._stop_btn.pack(side="left")
+
+        self._practice_status = tk.StringVar(value="")
+        ttk.Label(parent, textvariable=self._practice_status,
+                  foreground=_MUTED).pack(anchor="w", padx=10)
+
+    def _practice_send(self):
+        text = self._practice_text.get("1.0", "end").strip()
+        if not text:
+            return
+        self._practice_text.tag_remove("highlight", "1.0", "end")
+        self._sender.send(text)
+        self._send_btn.config(state="disabled")
+        self._stop_btn.config(state="normal")
+        self._practice_status.set("Sending…")
+        self._poll_sender()
+
+    def _practice_stop(self):
+        self._sender.stop()
+        self._practice_text.tag_remove("highlight", "1.0", "end")
+        self._send_btn.config(state="normal")
+        self._stop_btn.config(state="disabled")
+        self._practice_status.set("Stopped.")
+
+    def _poll_sender(self):
+        idx = self._sender.current_index
+        if idx >= 0:
+            self._practice_text.tag_remove("highlight", "1.0", "end")
+            start = f"1.0 + {idx} chars"
+            end   = f"1.0 + {idx + 1} chars"
+            self._practice_text.tag_add("highlight", start, end)
+
+        if self._sender.is_running:
+            self.root.after(100, self._poll_sender)
+        else:
+            self._practice_text.tag_remove("highlight", "1.0", "end")
+            self._send_btn.config(state="normal")
+            self._stop_btn.config(state="disabled")
+            self._practice_status.set("Done.")
 
     # -------------------------
     # SETTINGS TAB

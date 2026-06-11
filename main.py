@@ -12,6 +12,7 @@ from keyer import Keyer
 from decoder import Decoder
 from audio import AudioEngine
 from gui import MorseGUI
+from text_sender import TextSender
 
 
 def run_dispatcher(source: Queue, targets: list[Queue]):
@@ -84,6 +85,7 @@ def main():
 
     decoder = Decoder(config)
     audio = AudioEngine(q_audio, config)
+    sender = TextSender(q_audio, config)
 
     # Start audio stream
     audio.start()
@@ -101,10 +103,11 @@ def main():
         t.start()
 
     root = tk.Tk()
-    MorseGUI(root, config, decoder, audio, keyboard)
+    MorseGUI(root, config, decoder, audio, keyboard, sender)
 
     def _on_close():
         save_config(config)
+        sender.stop()
         audio.stop()
         root.destroy()
 
