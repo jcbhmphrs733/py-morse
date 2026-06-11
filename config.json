@@ -1,0 +1,13 @@
+{
+  "right_paddle_key": 13,
+  "sidetone_hz": 350,
+  "wpm": 20,
+  "left_paddle_key": 110,
+  "straight_key": 32,
+  "sidetone_volume": 0.5,
+  "word_gap_multiplier": 12.0,
+  "char_gap_multiplier": 5.0,
+  "carrier_color": "#eaef0a",
+  "input_mode": "IAMBIC",
+  "paddle_layout": "LEFT_DIT_RIGHT_DAH"
+}

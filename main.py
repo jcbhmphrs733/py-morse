@@ -6,6 +6,7 @@ from queue import Queue
 import tkinter as tk
 
 from config import DEFAULT_CONFIG
+from config_io import load_config, save_config
 from keyboard_input import KeyboardInput
 from keyer import Keyer
 from decoder import Decoder
@@ -69,7 +70,7 @@ def run_keyboard(keyboard: KeyboardInput):
 
 
 def main():
-    config = DEFAULT_CONFIG
+    config = load_config()
 
     # Shared event queues
     q1 = Queue()  # keyboard → keyer
@@ -100,10 +101,15 @@ def main():
         t.start()
 
     root = tk.Tk()
-    MorseGUI(root, config, decoder, audio)
-    root.mainloop()
+    MorseGUI(root, config, decoder, audio, keyboard)
 
-    audio.stop()
+    def _on_close():
+        save_config(config)
+        audio.stop()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", _on_close)
+    root.mainloop()
 
 
 if __name__ == "__main__":

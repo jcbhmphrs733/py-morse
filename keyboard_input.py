@@ -29,6 +29,10 @@ class KeyboardInput:
         self.right_paddle_key = self._normalize(config.right_paddle_key)
         self.straight_key = self._normalize(config.straight_key)
 
+        # When set to a callable, the next key press calls it with the VK
+        # code (int) and then clears this attribute.
+        self.capture_callback = None
+
     def _normalize(self, key):
         """
         Normalize key config values. Integers (VK codes) are stored as-is;
@@ -75,10 +79,25 @@ class KeyboardInput:
         )
         self.listener.start()
 
+    def reload_keys(self):
+        """Re-read key bindings from config after they have been updated."""
+        self.left_paddle_key  = self._normalize(self.config.left_paddle_key)
+        self.right_paddle_key = self._normalize(self.config.right_paddle_key)
+        self.straight_key     = self._normalize(self.config.straight_key)
+
     def _now(self) -> float:
         return perf_counter()
 
     def _on_press(self, key):
+        # Capture mode: route next key press to the waiting callback
+        if self.capture_callback is not None:
+            vk = self._get_vk(key)
+            if vk is not None:
+                cb = self.capture_callback
+                self.capture_callback = None
+                cb(vk)
+            return
+
         timestamp = self._now()
 
         # Straight key mode

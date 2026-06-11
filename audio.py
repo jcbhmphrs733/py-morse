@@ -29,6 +29,10 @@ class AudioEngine:
         # audio state
         self.tone_active = False
         self.phase = 0.0
+        self._envelope = 0.0   # current amplitude 0.0–1.0 (ramped)
+
+        # Ramp length: 5 ms
+        self._ramp_samples = max(1, int(0.005 * self.sample_rate))
 
         # streaming buffer control
         self.stream = None
@@ -89,19 +93,27 @@ class AudioEngine:
         """
 
         if status:
-            # In a real app you'd log this
             pass
 
-        # time vector for this buffer
-        t = (np.arange(frames) + self.phase) / self.sample_rate
+        target = 1.0 if self.tone_active else 0.0
+        step   = 1.0 / self._ramp_samples
 
-        if self.tone_active:
-            wave = np.sin(2 * np.pi * self.config.sidetone_hz * t)
+        if self._envelope == target:
+            env = np.full(frames, target)
         else:
-            wave = np.zeros(frames)
+            direction = 1.0 if target > self._envelope else -1.0
+            raw = self._envelope + direction * step * (np.arange(frames) + 1)
+            if direction > 0:
+                env = np.minimum(raw, target)
+            else:
+                env = np.maximum(raw, target)
+
+        self._envelope = float(env[-1])
+
+        t = (np.arange(frames) + self.phase) / self.sample_rate
+        wave = np.sin(2 * np.pi * self.config.sidetone_hz * t) * env * self.config.sidetone_volume
 
         outdata[:] = wave.reshape(-1, 1)
 
-        # update phase to avoid clicks
         self.phase += frames
         self.phase %= self.sample_rate
